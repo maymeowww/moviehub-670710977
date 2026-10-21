@@ -3,11 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import ReviewForm from '../components/ReviewForm';
 import ReviewList from '../components/ReviewList';
 import MovieActions from '../components/MovieActions';
-// import { getMovie } from '../api/tmdb';
-import { getMovie } from '../api/backend';
+import { getMovie } from '../api/tmdb';
 import { useAuth } from '../auth/AuthContext';
+import { getReviews, postReview } from '../api/backend';
 // TODO ขั้นที่ 3: import { getReviews, postReview } from '../api/backend';
-import { getReviews,postReview } from '../api/backend';
 
 function MovieDetail() {
   const { id } = useParams();                       // ได้เป็น string เสมอ (ตอนนี้คือรหัสของ TMDB)
@@ -15,8 +14,8 @@ function MovieDetail() {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
   const [reviews, setReviews] = useState([]);       // รีวิวจาก backend ของเรา (ไม่ใช่ TMDB)
-  const { isLoggedIn } = useAuth();                 // TODO ขั้นที่ 3: ดึง token และ member มาด้วย
-  const {token , member} = useAuth();
+  const { isLoggedIn, token } = useAuth();                 // TODO ขั้นที่ 3: ดึง token และ member มาด้วย
+
 
   useEffect(() => {
     let ignore = false;
@@ -36,24 +35,40 @@ function MovieDetail() {
   // TODO ขั้นที่ 3 (ก): เปลี่ยน effect นี้ให้โหลดรีวิวจริงจาก backend
   //   getReviews(id) ได้ { items } แล้ว setReviews(items)  dependency คือ [id] เหมือนตัวบน
   //   (แยกจาก effect ของ TMDB เพราะคนละ server พังคนละแบบ ไม่ควรให้รีวิวล่มแล้วหน้าทั้งหน้าพัง)
-    // โหลดรีวิวของเรื่องนี้จาก backend ของเรา แยก effect จาก TMDB เพราะคนละ server
-      // TODO ขั้นที่ 3 (ข): ส่งรีวิวจริง
   useEffect(() => {
     let ignore = false;
-    getReviews(id)
-      .then(data => { if (!ignore) setReviews(data.items); })
-      .catch(() => { if (!ignore) setReviews([]); });   // backend ล่มก็แค่ไม่มีรีวิว หน้าหนังยังดูได้
+    async function loadReviews() {
+      try {
+        const data = await getReviews(id);
+        if (!ignore) {
+          setReviews(data.items);
+        }
+      } catch (err) {
+        console.error('โหลดรีวิวไม่สำเร็จ:', err);
+        if (!ignore) {
+          setReviews([]);
+        }
+      }
+    }
+    loadReviews();
     return () => { ignore = true; };
   }, [id]);
 
-  // ส่งรีวิวจริง: ReviewForm เรียกฟังก์ชันนี้ตอนกดส่ง ถ้า throw ฟอร์มจะโชว์ข้อความ error เอง
-  async function handleReviewSubmit(text) {
-    const saved = await postReview(id, text, token);          // 201 ได้ { id, text, createdAt }
-    setReviews([
-      { ...saved, member: { id: member.id, displayName: member.displayName }, score: null },
-      ...reviews,                                              // ต่อหน้ารายการเดิม
-    ]);
+  // TODO ขั้นที่ 3 (ข): ส่งรีวิวจริง
+async function handleReviewSubmit(text) {
+  try {
+    await postReview(id, text, token);
+
+    const data = await getReviews(id);
+    setReviews(data.items);
+
+  } catch (err) {
+    console.error('ส่งรีวิวไม่สำเร็จ:', err);
+    alert('ส่งรีวิวไม่สำเร็จ: ' + err.message);
+
+    throw err; // ⭐ เพิ่มบรรทัดนี้
   }
+}
 
   if (status === 'loading') {
     return (
@@ -87,7 +102,7 @@ function MovieDetail() {
       <div className="mt-4 flex flex-col gap-8 md:flex-row">
         {movie.poster ? (
           <img src={movie.poster} alt={`โปสเตอร์ ${movie.title}`}
-               className="w-48 shrink-0 self-start rounded-xl border border-slate-200" />
+            className="w-48 shrink-0 self-start rounded-xl border border-slate-200" />
         ) : (
           <div className="grid aspect-[2/3] w-48 shrink-0 place-items-center rounded-xl bg-slate-100 text-5xl">🎬</div>
         )}

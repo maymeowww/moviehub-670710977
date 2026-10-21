@@ -3,30 +3,45 @@
 
 // '' = origin เดียวกับหน้าเว็บ CRA จะ proxy /api ไปที่ http://localhost:4000 ให้ (ตั้งใน package.json)
 // ตอนต่อ Go จริง ตั้ง REACT_APP_API_URL=https://api.ทีมเรา.xyz ใน .env และบน Vercel
+
+
 const BASE = process.env.REACT_APP_API_URL || '';
 
 // ฟังก์ชันเดียวที่ fetch จริง ทุกฟังก์ชันด้านล่างเรียกผ่านตัวนี้
-
 export async function apiFetch(path, { method = 'GET', body, token } = {}) {
-  const headers = { 'Content-Type': 'application/json' };   // 1) บอก server ว่า body เป็น JSON
-  if (token) headers.Authorization = `Bearer ${token}`;      //    และแนบบัตรผ่านถ้ามี
+  // 1. สร้าง headers
+  const headers = {
+    'Content-Type': 'application/json',
+  };
 
-  const res = await fetch(BASE + path, {                     // 2) ยิงจริง
+  // ถ้ามี token ให้แนบ Authorization
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  // 2. ยิง request ไป Backend
+  const res = await fetch(BASE + path, {
     method,
     headers,
-    body: body ? JSON.stringify(body) : undefined,           //    object ต้องแปลงเป็นข้อความก่อนส่ง
+    body: body ? JSON.stringify(body) : undefined,
   });
 
-  if (res.status === 204) return null;                       // 3) ลบสำเร็จ ไม่มี body ให้อ่าน
+  // 3. กรณีไม่มี response body
+  if (res.status === 204) {
+    return null;
+  }
 
-  const data = await res.json()                              //    อ่านคำตอบเป็น JSON
-    .catch(() => ({ error: 'server ไม่ได้ตอบเป็น JSON' }));
-  if (!res.ok) {                                             // 4) 400 / 401 / 404 / 409 มาลงตรงนี้
-    // const err = new Error(data.error || `server ตอบกลับ ${res.status}`);
-     const err = new Error(data.error?.message ?? data.error ?? `server ตอบกลับ ${res.status}`);
-    err.status = res.status;                                 //    แนบเลขไว้ให้หน้าเว็บใช้ต่อ
+  // 4. อ่าน JSON
+  const data = await res.json().catch(() => null);
+
+  // ถ้า server ตอบ error เช่น 400, 401, 404, 500
+  if (!res.ok) {
+    // แก้แล้ว: ใช้ data?.error เพราะ data อาจเป็น null (เช่น 404 ที่ไม่ใช่ JSON)
+    const err = new Error(data?.error?.message ?? data?.error ?? `server ตอบกลับ ${res.status}`);
+    err.status = res.status;
     throw err;
   }
+
   return data;
 }
 
@@ -69,10 +84,6 @@ export function removeFromWishlist(movieId, token) {
 export async function getMovies() {
   const data = await apiFetch('/api/movies');
   return data.items;
-}
-
-export async function getMovie(movieId) {
-  return apiFetch(`/api/movies/${movieId}`);
 }
 
 // ---------- แนวหนัง (สาธารณะ ใช้ทำ dropdown ในฟอร์มหลังบ้าน) ----------

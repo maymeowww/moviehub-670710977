@@ -23,18 +23,17 @@ function ReviewForm({ movieTitle, onSubmit }) {
       setError(err);                               // ข้อความ 400 / 401 / 409 จาก server
     }
   }
-
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <h3 className="font-medium text-slate-900">เขียนรีวิว {movieTitle}</h3>
       <textarea value={review} onChange={(e) => setReview(e.target.value)}
-                disabled={status === 'submitting'} rows={3}
-                placeholder="ดูแล้วรู้สึกอย่างไร (อย่างน้อย 10 ตัวอักษร)"
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50" />
+        disabled={status === 'submitting'} rows={3}
+        placeholder="ดูแล้วรู้สึกอย่างไร (อย่างน้อย 10 ตัวอักษร)"
+        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50" />
       <div className="flex items-center gap-3">
         <button type="submit"
-                disabled={review.trim().length === 0 || status === 'submitting'}
-                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:bg-slate-300">
+          disabled={review.trim().length === 0 || status === 'submitting'}
+          className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:bg-slate-300">
           {status === 'submitting' ? 'กำลังส่ง...' : 'ส่งรีวิว'}
         </button>
         {error && <p className="text-sm text-red-600">{error.message}</p>}

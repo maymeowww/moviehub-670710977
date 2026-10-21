@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';  // TODO ขั้นที่ 2: import { useNavigate } from 'react-router-dom'
 // TODO ขั้นที่ 2: import { useNavigate } from 'react-router-dom' และ import { useAuth } from '../auth/AuthContext'
 
 function Login() {
@@ -35,11 +35,11 @@ function Login() {
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-3">
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="อีเมล" required
-               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="รหัสผ่าน" required
-               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
         <button type="submit" disabled={status === 'submitting'}
-                className="w-full rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:bg-slate-300">
+          className="w-full rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:bg-slate-300">
           {status === 'submitting' ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
         </button>
         {error && <p className="text-sm text-red-600">{error}</p>}

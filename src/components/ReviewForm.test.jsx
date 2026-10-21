@@ -1,51 +1,34 @@
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '../auth/AuthContext';
-import RequireRole from './RequireRole';
+import userEvent from '@testing-library/user-event';
+import ReviewForm from './ReviewForm';
 
-function Backoffice() { return <h1>หลังบ้าน</h1>; }
-function LoginPage() { return <h1>หน้า Login</h1>; }
+test('ยังไม่พิมพ์อะไร ปุ่มส่งต้องกดไม่ได้', () => {
+  render(<ReviewForm movieTitle="Parasite" onSubmit={jest.fn()} />);
 
-function renderAt(path) {
-  return render(
-    <AuthProvider>
-      <MemoryRouter initialEntries={[path]}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/admin" element={<RequireRole role="admin"><Backoffice /></RequireRole>} />
-        </Routes>
-      </MemoryRouter>
-    </AuthProvider>
-  );
-}
-
-// จำลองคนที่ login แล้ว: AuthProvider อ่าน token และ member จาก localStorage ตอนเริ่ม
-function loginAs(member) {
-  localStorage.setItem('moviehub.token', 'mock.1.abc');
-  localStorage.setItem('moviehub.member', JSON.stringify(member));
-}
-
-beforeEach(() => localStorage.clear());
-
-test('ยังไม่ login ต้องถูกพาไปหน้า Login', () => {
-  renderAt('/admin');
-
-  expect(screen.getByRole('heading', { name: 'หน้า Login' })).toBeInTheDocument();
-  expect(screen.queryByText('หลังบ้าน')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'ส่งรีวิว' })).toBeDisabled();
 });
 
-test('login เป็น member ต้องเห็นหน้า 403 ไม่ใช่หลังบ้าน และไม่ถูกส่งไป Login', () => {
-  loginAs({ id: 1, displayName: 'Demo', role: 'member' });
-  renderAt('/admin');
+test('พิมพ์แล้วกดส่ง ต้องเรียก onSubmit ด้วยข้อความที่พิมพ์ แล้วขึ้นข้อความขอบคุณ', async () => {
+  const user = userEvent.setup();
+  const onSubmit = jest.fn().mockResolvedValue();          // แม่ปลอม: รับแล้วบอกว่าสำเร็จ
+  render(<ReviewForm movieTitle="Parasite" onSubmit={onSubmit} />);
 
-  expect(screen.getByText('403')).toBeInTheDocument();
-  expect(screen.queryByText('หลังบ้าน')).not.toBeInTheDocument();
-  expect(screen.queryByText('หน้า Login')).not.toBeInTheDocument();
+  await user.type(screen.getByPlaceholderText(/ดูแล้วรู้สึกอย่างไร/), 'สนุกมาก ฉากแอ็กชันดี');
+  await user.click(screen.getByRole('button', { name: 'ส่งรีวิว' }));
+
+  expect(onSubmit).toHaveBeenCalledWith('สนุกมาก ฉากแอ็กชันดี');
+  expect(await screen.findByText(/ขอบคุณสำหรับรีวิว Parasite/)).toBeInTheDocument();
 });
 
-test('login เป็น admin ต้องเห็นหลังบ้าน', () => {
-  loginAs({ id: 2, displayName: 'Admin', role: 'admin' });
-  renderAt('/admin');
+test('ถ้า onSubmit โยน Error ต้องโชว์ข้อความนั้น และฟอร์มยังอยู่ให้แก้ต่อ', async () => {
+  const user = userEvent.setup();
+  const onSubmit = jest.fn().mockRejectedValue(new Error('รีวิวสั้นเกินไป'));   // แม่ปลอม: server ตอบ 400
+  render(<ReviewForm movieTitle="Parasite" onSubmit={onSubmit} />);
 
-  expect(screen.getByRole('heading', { name: 'หลังบ้าน' })).toBeInTheDocument();
+  await user.type(screen.getByPlaceholderText(/ดูแล้วรู้สึกอย่างไร/), 'สั้นไป');
+  await user.click(screen.getByRole('button', { name: 'ส่งรีวิว' }));
+
+  expect(await screen.findByText('รีวิวสั้นเกินไป')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'ส่งรีวิว' })).toBeInTheDocument();   // ไม่ได้ไปหน้าขอบคุณ
+  expect(screen.queryByText(/ขอบคุณสำหรับรีวิว/)).not.toBeInTheDocument();
 });
