@@ -1,55 +1,51 @@
-import { useState } from 'react';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from '../auth/AuthContext';
+import RequireRole from './RequireRole';
 
-// ฟอร์มรีวิว state 3 ตัว (review, error, status) ตามสูตรออกแบบ state ที่เรียนไปแล้ว
-function ReviewForm({ movieTitle }) {
-  const [review, setReview] = useState('');
-  const [error, setError] = useState(null);
-  const [status, setStatus] = useState('typing');   // 'typing' | 'submitting' | 'success'
+function Backoffice() { return <h1>หลังบ้าน</h1>; }
+function LoginPage() { return <h1>หน้า Login</h1>; }
 
-  if (status === 'success') {
-    return <p className="rounded-lg bg-emerald-50 p-4 text-emerald-700">ขอบคุณสำหรับรีวิว {movieTitle} 🎉</p>;
-  }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setStatus('submitting');
-    setError(null);
-    try {
-      await submitReview(review);   // วันนี้ยังจำลอง server ไว้ สัปดาห์หน้าเปลี่ยนเป็น fetch ไป backend ของทีม
-      setStatus('success');
-    } catch (err) {
-      setStatus('typing');
-      setError(err);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <h3 className="font-medium text-slate-900">เขียนรีวิว {movieTitle}</h3>
-      <textarea value={review} onChange={(e) => setReview(e.target.value)}
-                disabled={status === 'submitting'} rows={3}
-                placeholder="ดูแล้วรู้สึกอย่างไร..."
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-50" />
-      <div className="flex items-center gap-3">
-        <button type="submit"
-                disabled={review.trim().length === 0 || status === 'submitting'}
-                className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-600 disabled:bg-slate-300">
-          {status === 'submitting' ? 'กำลังส่ง...' : 'ส่งรีวิว'}
-        </button>
-        {error && <p className="text-sm text-red-600">{error.message}</p>}
-      </div>
-    </form>
+function renderAt(path) {
+  return render(
+    <AuthProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin" element={<RequireRole role="admin"><Backoffice /></RequireRole>} />
+        </Routes>
+      </MemoryRouter>
+    </AuthProvider>
   );
 }
 
-// จำลอง server: รอ 1.5 วินาที ถ้าสั้นกว่า 10 ตัวอักษรให้ตอบกลับเป็น error
-function submitReview(text) {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (text.trim().length < 10) reject(new Error('รีวิวสั้นเกินไป ลองเขียนอีกนิด'));
-      else resolve();
-    }, 1500);
-  });
+// จำลองคนที่ login แล้ว: AuthProvider อ่าน token และ member จาก localStorage ตอนเริ่ม
+function loginAs(member) {
+  localStorage.setItem('moviehub.token', 'mock.1.abc');
+  localStorage.setItem('moviehub.member', JSON.stringify(member));
 }
 
-export default ReviewForm;
+beforeEach(() => localStorage.clear());
+
+test('ยังไม่ login ต้องถูกพาไปหน้า Login', () => {
+  renderAt('/admin');
+
+  expect(screen.getByRole('heading', { name: 'หน้า Login' })).toBeInTheDocument();
+  expect(screen.queryByText('หลังบ้าน')).not.toBeInTheDocument();
+});
+
+test('login เป็น member ต้องเห็นหน้า 403 ไม่ใช่หลังบ้าน และไม่ถูกส่งไป Login', () => {
+  loginAs({ id: 1, displayName: 'Demo', role: 'member' });
+  renderAt('/admin');
+
+  expect(screen.getByText('403')).toBeInTheDocument();
+  expect(screen.queryByText('หลังบ้าน')).not.toBeInTheDocument();
+  expect(screen.queryByText('หน้า Login')).not.toBeInTheDocument();
+});
+
+test('login เป็น admin ต้องเห็นหลังบ้าน', () => {
+  loginAs({ id: 2, displayName: 'Admin', role: 'admin' });
+  renderAt('/admin');
+
+  expect(screen.getByRole('heading', { name: 'หลังบ้าน' })).toBeInTheDocument();
+});
